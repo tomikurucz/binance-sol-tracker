@@ -39,7 +39,15 @@ import requests
 
 import notify
 
-BASE_URL = "https://api.binance.com"
+# A api.binance.com US IP-krol 451-gyel (geo-blokk) elutasit - a GitHub Actions
+# runner pedig US-ban fut. A data-api.binance.vision ugyanaz a publikus piaci adat,
+# de nincs geo-blokk. Sorrendben probaljuk, az elso mukodo hostot hasznaljuk.
+DEFAULT_BASE_URLS = [
+    "https://data-api.binance.vision",
+    "https://api.binance.com",
+    "https://api.binance.us",
+]
+BASE_URL = DEFAULT_BASE_URLS[0]
 KLINES_ENDPOINT = "/api/v3/klines"
 STATE_FILE = "last_signal.json"
 
@@ -91,9 +99,8 @@ def _parse_kline(raw: Sequence, index: int) -> Candle:
     )
 
 
-def fetch_candles(session: requests.Session, symbol: str, interval: str, total: int,
-                  base_url: str = BASE_URL) -> List[Candle]:
-    """Lekeri a legutobbi `total` db gyertyat (paginálva, max 1000/request)."""
+def _fetch_from_host(session: requests.Session, base_url: str, symbol: str, interval: str,
+                     total: int) -> List[Candle]:
     url = base_url + KLINES_ENDPOINT
     candles: List[Candle] = []
     end_time: Optional[int] = None
@@ -121,6 +128,30 @@ def fetch_candles(session: requests.Session, symbol: str, interval: str, total: 
     for i, c in enumerate(candles):
         c.index = i
     return candles
+
+
+def fetch_candles(session: requests.Session, symbol: str, interval: str, total: int,
+                  base_url: Optional[str] = None) -> List[Candle]:
+    """
+    Lekeri a legutobbi `total` db gyertyat (paginálva, max 1000/request).
+
+    Ha `base_url` nincs megadva, sorban probalja a DEFAULT_BASE_URLS hostokat.
+    Ez azert kell, mert a api.binance.com bizonyos orszagokbol / US IP-krol
+    (pl. GitHub Actions runner) HTTP 451-gyel valaszol.
+    """
+    hosts = [base_url] if base_url else list(DEFAULT_BASE_URLS)
+    last_exc: Optional[Exception] = None
+
+    for host in hosts:
+        try:
+            return _fetch_from_host(session, host, symbol, interval, total)
+        except requests.exceptions.RequestException as exc:
+            last_exc = exc
+            print(f"[data] {host} nem elerheto ({exc}); kovetkezo adatforras...")
+
+    if last_exc is not None:
+        raise last_exc
+    return []
 
 
 # ═════════════════════════════════════════════════════════════
@@ -479,7 +510,9 @@ def main() -> None:
     p.add_argument("--limit", type=int, default=1000, help="osszes lekerdezett gyertya")
     p.add_argument("--left", type=int, default=10, help="pivot bal oldali hossz (high es low)")
     p.add_argument("--right", type=int, default=10, help="pivot jobb oldali hossz (high es low)")
-    p.add_argument("--base-url", default=BASE_URL)
+    p.add_argument("--base-url", default=None,
+                   help="adatforras host (alapertelmezett: automatikus, "
+                        "data-api.binance.vision)")
     p.add_argument("--plot", action="store_true", help="grafikon mentese PNG-be")
     p.add_argument("--show", action="store_true", help="grafikon megnyitasa (a --plot-tal)")
     p.add_argument("--live", action="store_true", help="masodpercenkenti figyeles")

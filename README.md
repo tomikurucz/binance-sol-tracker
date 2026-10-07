@@ -65,6 +65,11 @@ Ezután magától fut minden órában a `3 * * * *` cron szerint, és csak akkor
 
 ## Fontos tudnivalók
 
+- **Adatforrás / 451 hiba:** a GitHub Actions runnerek US-ban futnak, és a
+  `api.binance.com` US IP-kről `451 Client Error`-t ad. Ezért a szkript
+  alapertelmezésben a **`data-api.binance.vision`** hostot használja (ugyanaz a
+  publikus piaci adat, nincs geo-blokk), és ha az nem elérhető, sorban megpróbálja
+  a `api.binance.com` → `api.binance.us` hostokat. Kézzel: `--base-url <host>`.
 - **Ingyenes:** publikus repóban korlátlan perc; privát repóban a havi 2000 ingyenes
   percből kb. 700-at használ (24 futás/nap × ~1 perc).
 - Ha 60 napig nincs aktivitás a repóban, a GitHub **szünetelteti** az ütemezett
