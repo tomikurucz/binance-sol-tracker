@@ -1,0 +1,59 @@
+name: Pivot signals -> push
+
+on:
+  schedule:
+    # Minden ora elejen, par perccel a gyertyazaras utan (UTC ido szerint).
+    # A GitHub cron neha par percet kesik - ez itt nem gond.
+    - cron: "3 * * * *"
+  workflow_dispatch:   # kezi inditas a GitHub felulten
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pivot-signals
+  cancel-in-progress: false
+
+jobs:
+  check-signals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repo checkout
+        uses: actions/checkout@v4
+
+      - name: Python beallitas
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fuggosegek telepitese
+        run: pip install -r requirements.txt
+
+      - name: Korabbi allapot visszaallitasa
+        uses: actions/cache/restore@v4
+        with:
+          path: last_signal.json
+          key: last-signal-${{ github.run_id }}
+          restore-keys: |
+            last-signal-
+
+      - name: Jelzesek ellenorzese es ertesites
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+        run: python pivot_signals.py --limit 1000 --closed-only --notify-once
+
+      - name: Allapot fajl biztositasa
+        if: always()
+        run: test -f last_signal.json || echo '{}' > last_signal.json
+
+      - name: Allapot mentese
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: last_signal.json
+          key: last-signal-${{ github.run_id }}

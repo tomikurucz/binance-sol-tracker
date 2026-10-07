@@ -1,0 +1,7 @@
+# SOHA ne commitold - titkok vannak benne!
+.env
+
+# Futaskori allapot / generalt fajlok
+last_signal.json
+__pycache__/
+*.png
