@@ -2,9 +2,11 @@ name: Pivot signals -> push
 
 on:
   schedule:
-    # Minden ora elejen, par perccel a gyertyazaras utan (UTC ido szerint).
-    # A GitHub cron neha par percet kesik - ez itt nem gond.
-    - cron: "3 * * * *"
+    # Kicsit az orafordulo ELE tervezunk (":58"), majd a job belul megvarja a
+    # kovetkezo egesz orat +3 mp-et. Igy a GitHub cron kesese (gyakran 1-10 perc)
+    # sem rontja el az idzitest, es az 1h gyertya biztosan lezart allapotban
+    # ertekelodik. A cron mindig UTC-ben ertendo.
+    - cron: "58 * * * *"
   workflow_dispatch:   # kezi inditas a GitHub felulten
     inputs:
       test:
@@ -52,6 +54,25 @@ jobs:
           PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
           PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
         run: python pivot_signals.py --test-notify
+
+      - name: Varakozas a kovetkezo egesz orara
+        if: ${{ inputs.test != true }}
+        run: |
+          python - <<'PY'
+          import datetime as dt
+          import time
+
+          now = dt.datetime.now(dt.timezone.utc)
+          # A kovetkezo orafordulo + 3 mp (ennyi kell a gyertya lezarasahoz).
+          target = (now.replace(minute=0, second=0, microsecond=0)
+                    + dt.timedelta(hours=1, seconds=3))
+          delay = (target - now).total_seconds()
+          if 0 < delay < 600:
+              print(f"Varakozas {delay:.0f} mp-et a(z) {target:%H:%M:%S} UTC oraig...")
+              time.sleep(delay)
+          else:
+              print("Nincs varakozas (az orafordulo mar elmult vagy tul nagy a keses).")
+          PY
 
       - name: Jelzesek ellenorzese es ertesites
         if: ${{ inputs.test != true }}

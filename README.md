@@ -63,8 +63,11 @@ Add hozzá, amelyiket használod:
 
 **Actions** fül → `Pivot signals -> push` → **Run workflow** (kézi indítás).
 
-Ezután magától fut minden órában a `3 * * * *` cron szerint, és csak akkor küld
-értesítést, ha az éppen lezárt 1h gyertyán jelzés keletkezett.
+Ezután magától fut minden órában, **az órafordulóra időzítve**: a workflow
+`:58`-kor indul, és a job belül megvárja a következő egész órát (+3 mp), hogy
+pontosan a frissen lezárt 1h gyertyát értékelje. Ha a GitHub cron késett, akkor
+várakozás nélkül, azonnal értékel — a gyertya ekkor is a helyes, lezárt gyertya.
+Értesítés csak akkor megy, ha ezen a gyertyán jelzés keletkezett.
 
 > **Teszt értesítés a GitHubról:** a *Run workflow* panelen pipáld be a
 > **„Csak teszt értesítés küldése"** opciót → így azonnal kapsz egy teszt push-t a
