@@ -76,6 +76,15 @@ várakozás nélkül, azonnal értékel — a gyertya ekkor is a helyes, lezárt
 
 ## Fontos tudnivalók
 
+- **Időzítés / késés:** a GitHub cron **nem pontos** – terheléstől függően 1-10 percet
+  (csúcsidőben többet) késhet, sőt egy-egy futás el is maradhat. A workflow ezért
+  `:58`-kor indul és a job belül megvárja az órafordulót, így a jelzés az óra
+  lezárulta után **pár másodperccel** kiértékelődik – de csak akkor, ha a GitHub
+  időben elindítja. Ha a késés fontos (kézi belépés), érdemes always-on gépen
+  `--live --closed-only --notify` módban futtatni.
+- **Kimaradt futás pótlása:** ha egy órai futás kimarad vagy elhal, a következő
+  futás a `last_signal.json` alapján **pótolja** az összes kimaradt jelzést
+  (biztonsági okból legfeljebb az utolsó 5-öt). Így jelzés nem veszik el.
 - **Adatforrás / 451 hiba:** a GitHub Actions runnerek US-ban futnak, és a
   `api.binance.com` US IP-kről `451 Client Error`-t ad. Ezért a szkript
   alapertelmezésben a **`data-api.binance.vision`** hostot használja (ugyanaz a

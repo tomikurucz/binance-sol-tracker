@@ -84,6 +84,21 @@ class Signal:
 
 
 # ═════════════════════════════════════════════════════════════
+# SEGEDFUGGVENYEK
+# ═════════════════════════════════════════════════════════════
+
+_INTERVAL_UNITS = {"m": 60, "h": 3600, "d": 86400, "w": 604800}
+
+
+def interval_seconds(interval: str) -> int:
+    """'1h' -> 3600, '15m' -> 900, '4h' -> 14400, '1d' -> 86400."""
+    unit = interval[-1:].lower()
+    if unit not in _INTERVAL_UNITS or not interval[:-1].isdigit():
+        raise ValueError(f"Ismeretlen interval: {interval!r}")
+    return int(interval[:-1]) * _INTERVAL_UNITS[unit]
+
+
+# ═════════════════════════════════════════════════════════════
 # BINANCE LEKERES
 # ═════════════════════════════════════════════════════════════
 
@@ -477,17 +492,31 @@ def run_notify_once(session, args) -> None:
     """
     Egyszeri ellenorzes cron/CI ala (pl. GitHub Actions).
 
-    Csak a legutobbi LEZART gyertya jelzeserol ertesit, es a last_signal.json
-    segitsegevel gondoskodik rola, hogy ugyanaz a gyertya ne ertesitsen ketszer.
+    Csak a mar LEZART gyertyakat ertekeli, es ezeket IDO alapon valasztja ki (nem
+    a valasz utolso elemei kozul) - igy az sem gond, ha az eppen nyitott gyertya
+    meg nem is jelent meg a tozsdei valaszban.
+
+    Ertesites:
+      - ha meg nincs allapot (elso futas), csak a legutobbi lezart gyertya,
+      - utana MINDEN olyan jelzes, ami ujabb a last_signal.json-ban tarolt idonel:
+        igy egy kimaradt (kesett vagy elhalt) futas sem veszit el jelzest.
     """
     candles = fetch_candles(session, args.symbol, args.interval, args.limit, args.base_url)
     if len(candles) < 3:
-        print("Nincs eleg gyertya a kiértékeléshez.")
+        print("Nincs eleg gyertya a kiertekeleshez.")
         return
 
-    signals, _ = compute_signals(candles, args.left, args.right, args.left, args.right,
-                                 closed_only=True)
-    last_closed = candles[-2].open_time
+    # Ido alapu szures: csak a mar lezart gyertyakat tartjuk meg.
+    step = interval_seconds(args.interval)
+    now_ts = datetime.now(timezone.utc).timestamp()
+    closed = [c for c in candles if c.open_time.timestamp() + step <= now_ts]
+    if len(closed) < 3:
+        print("Nincs eleg LEZART gyertya a kiertekeleshez.")
+        return
+
+    signals, _ = compute_signals(closed, args.left, args.right, args.left, args.right,
+                                 closed_only=False)
+    last_closed = closed[-1].open_time
 
     print(f"{args.symbol} {args.interval} | utolso lezart gyertya: "
           f"{last_closed:%Y-%m-%d %H:%M} UTC")
@@ -497,18 +526,27 @@ def run_notify_once(session, args) -> None:
         print(f"Mar feldolgozva ({last_seen:%Y-%m-%d %H:%M} UTC), nincs teendo.")
         return
 
-    fresh = [s for s in signals if s.time == last_closed]
-
     notifier = notify.Notifier(session)
     if notifier.channels:
         print(f"Csatornak: {', '.join(notifier.channels)}")
     else:
         print("FIGYELEM: nincs beallitott ertesitesi csatorna (lasd .env.example).")
 
+    if last_seen is None:
+        # Nincs allapot: csak a legutobbi gyertya, hogy ne spamoljuk a multat.
+        fresh = [s for s in signals if s.time == last_closed]
+        print("Nincs korabbi allapot -> csak a legutobbi lezart gyertya szamit.")
+    else:
+        # Potlas: minden jelzes, ami a legutobb ertesitett ido utan keletkezett.
+        fresh = [s for s in signals if s.time > last_seen]
+        if len(fresh) > 5:
+            print(f"FIGYELEM: {len(fresh)} kimaradt jelzes - csak a legutobbi 5 megy ki.")
+            fresh = fresh[-5:]
+
     if not fresh:
-        print("Nincs jelzes ezen a gyertyan.")
+        print("Nincs uj jelzes.")
     for s in fresh:
-        print(f"JELZES: {s.kind} @ {s.price:.2f}")
+        print(f"JELZES: {s.kind} @ {s.price:.2f}  ({s.time:%Y-%m-%d %H:%M} UTC)")
         title, message = build_alert(s, args.symbol, args.interval)
         sent = notifier.send(title, message, priority="high",
                              tags=["chart_with_upwards_trend"])
