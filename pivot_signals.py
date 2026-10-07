@@ -20,7 +20,7 @@ Hasznalat:
     python pivot_signals.py --plot              # grafikon mentese PNG-be
     python pivot_signals.py --plot --show       # grafikon megnyitasa
     python pivot_signals.py --live              # masodpercenkenti figyeles
-    python pivot_signals.py --live --notify     # + push ertesites a telefonra
+    python pivot_signals.py --live --notify     # + push (indulaskor teszt uzenet, majd uj jelek)
     python pivot_signals.py --test-notify       # csak teszt ertesites kuldese
     python pivot_signals.py --notify-once       # egyszeri ellenorzes (cron/CI-hez)
 
@@ -417,6 +417,20 @@ def run_live(session, args) -> None:
         else:
             print("[notify] FIGYELEM: nincs beallitott csatorna! Masold le a .env.example-t "
                   ".env nevre es toltsd ki.")
+
+        # Indulaskor azonnali teszt ertesites, hogy lassad: el a kapcsolat.
+        if notifier.channels:
+            started = datetime.now(timezone.utc)
+            title = f"{args.symbol} figyeles elindult"
+            message = (
+                f"Pivot Signals figyeles elindult\n"
+                f"Par: {args.symbol} {args.interval}\n"
+                f"Ido: {started:%Y-%m-%d %H:%M} UTC\n"
+                f"Ettol kezdve jonnek az uj jelzesek."
+            )
+            sent = notifier.send(title, message, priority="default", tags=["rocket"])
+            if sent:
+                print(f"[notify] Indulo ertesites elkuldve: {', '.join(sent)}")
 
     last_seen = _load_last_seen()
     if last_seen is not None:

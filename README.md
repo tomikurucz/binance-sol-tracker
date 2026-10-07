@@ -26,6 +26,9 @@ Válassz egy csatornát. A legegyszerűbb az **ntfy** (ingyenes, nem kell regisz
 python pivot_signals.py --test-notify
 ```
 
+> Éles módban (`--live --notify`) a szkript **induláskor azonnal** küld egy
+> "figyelés elindult" értesítést, így rögtön látod, hogy él a kapcsolat.
+
 ## 2. Feltöltés a GitHubra
 
 1. A [github.com](https://github.com)-on **New repository** → név: `binance-sol-tracker`
