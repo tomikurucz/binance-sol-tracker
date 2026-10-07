@@ -30,6 +30,7 @@ Az ertesites beallitasa a .env fajlban tortenik (lasd .env.example).
 import argparse
 import json
 import os
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -586,6 +587,10 @@ def main() -> None:
                        "Pivot Signals - ha ezt latod a telefonodon, minden rendben!",
                        priority="high", tags=["test"])
         print(f"Elkuldve: {sent or 'semmi'}")
+        if not sent:
+            print("HIBA: egyetlen ertesites sem ment ki. Ellenorizd a .env / "
+                  "GitHub Secret erteket (pontos masolas, nincs szokoz/egyenloseg jel).")
+            sys.exit(1)
         return
 
     if args.notify_once:

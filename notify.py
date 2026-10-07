@@ -21,11 +21,31 @@ amelyik be van allitva, azon a csatornan megy az ertesites):
 """
 
 import os
+import re
 from typing import List, Optional
 
 import requests
 
 ENV_FILE = ".env"
+
+# Az ntfy topic neve csak ezeket tartalmazhatja (kulonben a HTTP POST 400-at ad).
+_TOPIC_RE = re.compile(r"\A[-_A-Za-z0-9]{1,64}\Z")
+
+
+def _validate_topic(topic: str) -> None:
+    """
+    Ellenorzi az ntfy topic nevet. A tipikus hiba: a teljes 'NTFY_TOPIC=...' sort
+    masoltad be ertekkent, vagy szokoz / sortores kerult a vegere.
+    FONTOS: a topic erteket soha nem irjuk ki (a log publikus lehet).
+    """
+    if _TOPIC_RE.match(topic):
+        return
+    raise ValueError(
+        f"NTFY_TOPIC hibas formatum: hossz={len(topic)}, "
+        f"szokoz/sortores={any(ch.isspace() for ch in topic)}, "
+        f"'=' jel={'=' in topic}. "
+        "Csak betu, szam, '-' es '_' engedelyezett (max 64 karakter)."
+    )
 
 
 def load_env(path: str = ENV_FILE) -> None:
@@ -86,6 +106,7 @@ class Notifier:
     # ── ntfy.sh ──────────────────────────────────────────────
     def _send_ntfy(self, title, message, priority, tags):
         topic = os.environ["NTFY_TOPIC"]
+        _validate_topic(topic)
         server = os.environ.get("NTFY_SERVER", "https://ntfy.sh").rstrip("/")
         headers = {
             "Title": _ascii(title),
