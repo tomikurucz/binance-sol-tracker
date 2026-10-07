@@ -44,6 +44,30 @@ jobs:
           restore-keys: |
             last-signal-
 
+      - name: Ertesitesi beallitasok ellenorzese (ertek nelkul)
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+        run: |
+          python - <<'PY'
+          import os
+
+          names = ["NTFY_TOPIC", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
+                   "DISCORD_WEBHOOK_URL", "PUSHOVER_TOKEN", "PUSHOVER_USER"]
+          any_set = False
+          for name in names:
+              value = os.environ.get(name, "")
+              if value:
+                  any_set = True
+              state = f"beallitva (hossz={len(value)})" if value else "URES"
+              print(f"{name:22s} {state}")
+          print("Van beallitott csatorna:", any_set)
+          PY
+
       - name: Teszt ertesites
         if: ${{ inputs.test == true }}
         env:
