@@ -18,7 +18,7 @@ Szerver nélkül, ingyen: a GitHub Actions óránként lefuttatja a szkriptet.
 Válassz egy csatornát. A legegyszerűbb az **ntfy** (ingyenes, nem kell regisztráció):
 
 1. Telepítsd a **ntfy** appot a telefonra
-2. Válassz egy egyedi topic nevet, pl. `sol-pivot-9f3a2c7e`
+2. Válassz egy egyedi, nehezen kitalálható topic nevet, pl. `sol-pivot-a1b2c3d4`
 3. Az appban: **Subscribe** → add meg ugyanezt a topic nevet
 4. Helyben teszteld:
 
@@ -54,7 +54,7 @@ Add hozzá, amelyiket használod:
 
 | Secret | Érték |
 |---|---|
-| `NTFY_TOPIC` | a topic neved, pl. `sol-pivot-9f3a2c7e` |
+| `NTFY_TOPIC` | a topic neved (csak ide, secretbe – ne írd a repóba!) |
 | `TELEGRAM_BOT_TOKEN` | *(ha Telegramot használsz)* |
 | `TELEGRAM_CHAT_ID` | *(ha Telegramot használsz)* |
 | `DISCORD_WEBHOOK_URL` | *(ha Discordot használsz)* |
