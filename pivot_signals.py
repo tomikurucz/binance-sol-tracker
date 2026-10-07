@@ -588,8 +588,12 @@ def main() -> None:
                        priority="high", tags=["test"])
         print(f"Elkuldve: {sent or 'semmi'}")
         if not sent:
-            print("HIBA: egyetlen ertesites sem ment ki. Ellenorizd a .env / "
-                  "GitHub Secret erteket (pontos masolas, nincs szokoz/egyenloseg jel).")
+            print("HIBA: egyetlen ertesites sem ment ki. Ellenorizd:")
+            print("  1) GitHub: Settings -> Secrets and variables -> Actions")
+            print("     a *Secrets* fulon legyen (NE a Variables fulon!)")
+            print("  2) a nev pontosan: NTFY_TOPIC (repository secret, nem Environment secret)")
+            print("  3) az ertek CSAK a topic nev legyen (nincs 'NTFY_TOPIC=', idezojel,")
+            print("     szokoz vagy sortores)")
             sys.exit(1)
         return
 
