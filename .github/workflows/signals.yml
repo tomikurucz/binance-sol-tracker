@@ -6,6 +6,11 @@ on:
     # A GitHub cron neha par percet kesik - ez itt nem gond.
     - cron: "3 * * * *"
   workflow_dispatch:   # kezi inditas a GitHub felulten
+    inputs:
+      test:
+        description: "Csak teszt ertesites kuldese (nincs jelzes-ellenorzes)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -37,7 +42,19 @@ jobs:
           restore-keys: |
             last-signal-
 
+      - name: Teszt ertesites
+        if: ${{ inputs.test == true }}
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+        run: python pivot_signals.py --test-notify
+
       - name: Jelzesek ellenorzese es ertesites
+        if: ${{ inputs.test != true }}
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -48,11 +65,11 @@ jobs:
         run: python pivot_signals.py --limit 1000 --closed-only --notify-once
 
       - name: Allapot fajl biztositasa
-        if: always()
+        if: ${{ always() && inputs.test != true }}
         run: test -f last_signal.json || echo '{}' > last_signal.json
 
       - name: Allapot mentese
-        if: always()
+        if: ${{ always() && inputs.test != true }}
         uses: actions/cache/save@v4
         with:
           path: last_signal.json

@@ -66,6 +66,11 @@ Add hozzá, amelyiket használod:
 Ezután magától fut minden órában a `3 * * * *` cron szerint, és csak akkor küld
 értesítést, ha az éppen lezárt 1h gyertyán jelzés keletkezett.
 
+> **Teszt értesítés a GitHubról:** a *Run workflow* panelen pipáld be a
+> **„Csak teszt értesítés küldése"** opciót → így azonnal kapsz egy teszt push-t a
+> telefonodra (ilyenkor nem fut jelzés-ellenőrzés és nem módosul az állapot).
+> A sima (kijelöletlen) futtatás csak akkor küld, ha tényleg van új jelzés.
+
 ## Fontos tudnivalók
 
 - **Adatforrás / 451 hiba:** a GitHub Actions runnerek US-ban futnak, és a
