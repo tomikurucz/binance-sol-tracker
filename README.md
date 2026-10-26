@@ -507,6 +507,57 @@ teljesülése) szintén nincs üzenet, mert az a tőzsdén történik, a szkript
 > változik. Éles kereskedéshez ezért always-on gépen futtatott
 > `--live --trade` mód ajánlott.
 
+## 6. Saját szerver (VPS): ütemezés
+
+Éles, fix IP-s futtatás: a bot óránként, a gyertya-zárás után pár másodperccel
+lefut egyszer (`--notify-once --trade`), a GitHub Actions helyett. A fix IP-t a
+szolgáltató adja, ezt kell a Binance API kulcs whitelistjére felvenni.
+
+Egyszeri telepítés a repó gyökeréből (a `deploy/` mappa tartalma):
+
+```bash
+sudo bash deploy/install-scheduler.sh
+```
+
+Ez a következőket teszi:
+
+| Fájl | Hely | Szerep |
+|---|---|---|
+| `deploy/sol-tracker.service` | `/etc/systemd/system/` | egy futás: `pivot_signals.py --symbol SOLUSDC --margin-usdt 2 --leverage 20 --trade --notify-once` |
+| `deploy/sol-tracker.timer` | `/etc/systemd/system/` | óránként `:02`-kor (szerver órája szerint – állítsd UTC-re) |
+| `deploy/logrotate.conf` | `/etc/logrotate.d/sol-tracker` | heti forgatás a `logs/signals.log`-ra |
+
+A szkript a saját útvonalát és a `sudo`-t indító felhasználót írja be a unitba,
+tehát bármelyik mappába klónozva működik (más felhasználóhoz:
+`sudo SOL_TRACKER_USER=bot bash deploy/install-scheduler.sh`).
+
+Ellenőrzés és kézi próba:
+
+```bash
+systemctl list-timers sol-tracker.timer      # mikor fut legközelebb
+sudo systemctl start sol-tracker.service     # azonnali futtatás
+tail -n 30 logs/signals.log                  # a futás naplója
+systemctl status sol-tracker.timer           # aktív-e
+```
+
+A futtatott paraméterek (symbol, margin, leverage) a unit `ExecStart` sorában
+vannak; módosítás után:
+
+```bash
+sudo systemctl edit --full sol-tracker.service   # vagy nano a fájlon
+sudo systemctl daemon-reload
+```
+
+Cron-alternatíva (ha nem kell systemd):
+
+```
+2 * * * * cd /opt/binance-sol-tracker && flock -n /tmp/sol.lock .venv/bin/python pivot_signals.py --symbol SOLUSDC --margin-usdt 2 --leverage 20 --trade --notify-once >> logs/signals.log 2>&1
+```
+
+> A `--live` mód is használható a szerveren, de akkor systemd service kell
+> `Restart=always`-szal; a timer + `--notify-once` egyszerűbb és hálózati
+> megszakadás után is magától helyreáll.
+
 ## Pine-egyezés (jelzések és színek)
 
 A Python-port a pivot breakout mellett a Pine volume spike, fordulat és SL/TP

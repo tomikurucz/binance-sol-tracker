@@ -1,0 +1,14 @@
+# Sablon: a deploy/install-scheduler.sh tolti ki a @APP_DIR@ / @RUN_USER@ helyeket.
+[Unit]
+Description=Binance SOL pivot signals - orankenti ellenorzes + kereskedelem
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@RUN_USER@
+WorkingDirectory=@APP_DIR@
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@APP_DIR@/.venv/bin/python pivot_signals.py --symbol SOLUSDC --margin-usdt 2 --leverage 20 --trade --notify-once
+StandardOutput=append:@APP_DIR@/logs/signals.log
+StandardError=append:@APP_DIR@/logs/signals.log

@@ -1,0 +1,12 @@
+[Unit]
+Description=Orankent 2 perccel a gyertya-zaras utan (sol-tracker.service)
+
+[Timer]
+OnCalendar=*-*-* *:02:00
+AccuracySec=1s
+# Nincs utolagos bepotlas: kihagyott gyertyara nem indul ujra.
+Persistent=false
+Unit=sol-tracker.service
+
+[Install]
+WantedBy=timers.target

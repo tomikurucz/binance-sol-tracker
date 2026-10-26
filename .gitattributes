@@ -1,0 +1,3 @@
+# A Linuxra kerulo fajlok mindig LF-fel keruljenek a repoba (Windows checkout se
+# alakitsa at), kulonben a bash script es a systemd unit hibas lesz a szerveren.
+deploy/* text eol=lf
