@@ -48,6 +48,39 @@ def _validate_topic(topic: str) -> None:
     )
 
 
+def _json_or_empty(resp: requests.Response) -> dict:
+    """A valasz JSON-ja, vagy ures dict (ha nem JSON / nem ertelmezheto)."""
+    try:
+        data = resp.json()
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def telegram_chat_ids(token: str, session: Optional[requests.Session] = None) -> dict:
+    """
+    A bot getUpdates valaszabol osszegyujti a lathato chat_id-ket.
+
+    Hasznalat: elotte Telegramon irj a botnak egy uzenetet (pl. /start), kulonben
+    a getUpdates ures (a bot csak akkor lat chatet, ha az irt neki).
+    """
+    s = session or requests.Session()
+    resp = s.get(f"https://api.telegram.org/bot{token.strip()}/getUpdates",
+                 timeout=15)
+    data = _json_or_empty(resp)
+    if resp.status_code != 200 or not data.get("ok"):
+        raise RuntimeError(data.get("description") or f"HTTP {resp.status_code}")
+
+    found = {}
+    for update in data.get("result", []):
+        chat = ((update.get("message") or update.get("channel_post")
+                 or update.get("edited_message") or {}).get("chat") or {})
+        if chat.get("id"):
+            name = chat.get("username") or chat.get("title") or chat.get("first_name") or ""
+            found[chat["id"]] = name
+    return found
+
+
 def load_env(path: str = ENV_FILE) -> None:
     """Egyszeru .env betolto (kulcs=ertek soronkent, # = komment)."""
     if not os.path.isfile(path):
@@ -62,6 +95,32 @@ def load_env(path: str = ENV_FILE) -> None:
             value = value.strip().strip('"').strip("'")
             if key:
                 os.environ[key] = value
+    warn_if_example_is_filled()
+
+
+def warn_if_example_is_filled(path: str = ENV_FILE + ".example") -> None:
+    """
+    Figyelmeztet, ha valaki az .env.example-be irt kitoltott erteket.
+
+    Az .env.example a git repoba kerul (a .env-et a .gitignore kizarja), a sablon
+    minden erteke ures - tehat barmilyen nem ures ertek ott titok, es nem
+    ertesitodik. Ertekeket nem irunk ki, csak a kulcsneveket.
+    """
+    if not os.path.isfile(path):
+        return
+    filled = []
+    with open(path, "r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            if value.strip().strip('"').strip("'"):
+                filled.append(key.strip())
+    if filled:
+        print(f"[figyelem] A {path} fajlban kitoltott ertek van: {', '.join(filled)}")
+        print(f"[figyelem] A {path} a git repoba kerul - a titkokat a .env fajlba ird, "
+              f"es a {path}-ben hagyd uresen.")
 
 
 def _ascii(text: str) -> str:
@@ -124,18 +183,25 @@ class Notifier:
     def _send_telegram(self, title, message, priority, tags):
         token = os.environ["TELEGRAM_BOT_TOKEN"]
         chat_id = os.environ["TELEGRAM_CHAT_ID"]
-        resp = self.session.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            json={
-                "chat_id": chat_id,
-                "text": f"*{title}*\n{message}",
-                "parse_mode": "Markdown",
-                "disable_notification": priority != "high",
-            },
-            timeout=self.timeout,
-        )
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": f"*{title}*\n{message}",
+            "parse_mode": "Markdown",
+            "disable_notification": priority != "high",
+        }
+        resp = self.session.post(url, json=payload, timeout=self.timeout)
+        data = _json_or_empty(resp)
+
+        # A jelzes szovege Markdown-karaktert tartalmazhat (pl. _ * ` [ ]):
+        # ilyenkor a Telegram 400-at ad, ezert sima szovegkent ujraprobáljuk.
+        if resp.status_code == 400 and "parse" in str(data.get("description", "")).lower():
+            payload.pop("parse_mode", None)
+            payload["text"] = f"{title}\n{message}"
+            resp = self.session.post(url, json=payload, timeout=self.timeout)
+            data = _json_or_empty(resp)
+
         resp.raise_for_status()
-        data = resp.json()
         if not data.get("ok"):
             raise RuntimeError(f"Telegram API: {data.get('description')}")
 

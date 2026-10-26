@@ -3,5 +3,7 @@
 
 # Futaskori allapot / generalt fajlok
 last_signal.json
+pending_trade.json
+logs/
 __pycache__/
 *.png
